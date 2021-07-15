@@ -21,4 +21,10 @@ Just like any other node app, you will require ```node``` and ```npm``` to run t
 3. The server should run on port 3000 or you could change to your desired port. 
 
 
+----
 
+### Using the postman collection
+
+Refer to the postman collection ```Collection-With-Reporting.postman_collection.json``` under ```postman```.
+
+Import it and add requests within the collection. The collection also has variables to change the reporting server's URL. 
