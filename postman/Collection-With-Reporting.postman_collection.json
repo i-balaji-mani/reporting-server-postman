@@ -1,0 +1,147 @@
+{
+	"info": {
+		"_postman_id": "0cf1dc26-c9da-45cc-8517-7b65d0993425",
+		"name": "Collection-With-Reporting",
+		"description": "This collection is an example to use the reporting service for recording both the successful and error responses along with the actual iteration data (from the data file)\n\n\n## Steps To Use\n1. Put all the requests you want to write the responses for, under this collection.\n \n2. Make sure the reporting server is running. Check the readme within the repo for steps to run the reporting server. This collection will anyways abort execution if the reporting server is offline. \n\n3. You could also use the newman runner to run this collection from command line. Details to install and use are here https://www.npmjs.com/package/newman",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "get todos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://jsonplaceholder.typicode.com/todos/{{todoId}}",
+					"protocol": "https",
+					"host": [
+						"jsonplaceholder",
+						"typicode",
+						"com"
+					],
+					"path": [
+						"todos",
+						"{{todoId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"const reportingHost = pm.collectionVariables.get('reportingHost');",
+					"",
+					"pm.sendRequest({",
+					"        url: `${reportingHost}/`,",
+					"        method: 'GET',",
+					"        header: 'Content-Type:application/json'",
+					"        }, (error, response) => {",
+					"   if (error) {",
+					"    console.log(error);",
+					"  }",
+					"",
+					"  pm.test('Reporting service should be running to process', () => {",
+					"    pm.expect(error).to.equal(null);",
+					"    pm.expect(response).to.have.property('code', 200);",
+					"    pm.expect(response).to.have.property('status', 'OK');",
+					"  });",
+					"});",
+					"",
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"const reportingHost = pm.collectionVariables.get('reportingHost');",
+					"const extractHeaderReducer = (accumulator, currentValue) => { accumulator.push(currentValue.key); return accumulator };",
+					"const extractIterationValueReducer = (accumulator, currentValue) => { accumulator.push(pm.iterationData.get(currentValue)); return accumulator; };",
+					"const dataFileHeader = pm.iterationData.values.reduce(extractHeaderReducer, []);",
+					"const iterationValues = dataFileHeader.reduce(extractIterationValueReducer, []);",
+					"",
+					"if (pm.info.iteration == 0) {",
+					"    pm.collectionVariables.set(\"file_suffix\", Date.now().toString());",
+					"}",
+					"",
+					"const fileSuffix = pm.collectionVariables.get('file_suffix');",
+					"dataFileHeader.push('response');",
+					"iterationValues.push(JSON.stringify(pm.response.text()));",
+					"",
+					"const report = (requestUrl, requestBodyRaw) => {",
+					"     pm.sendRequest({",
+					"        url: `${reportingHost}/${requestUrl}`,",
+					"        method: 'POST',",
+					"        header: 'Content-Type:application/json',",
+					"        body: {",
+					"            mode: 'raw',",
+					"            raw: JSON.stringify(requestBodyRaw)",
+					"        }",
+					"    }, function (err, res) {",
+					"        console.log(res);",
+					"    });",
+					"}",
+					"",
+					"const reportSuccess = (requestBodyRaw) => {",
+					"    report('write-success', requestBodyRaw);",
+					"}",
+					"",
+					"const reportError = (requestBodyRaw) => {",
+					"    report('write-error', requestBodyRaw);",
+					"}",
+					"",
+					"// The opts for the server, also includes the data to be written to file",
+					"let opts = {",
+					"    requestName: request.name || request.url,",
+					"    fileSuffix: fileSuffix,",
+					"    fileExtension: 'csv',",
+					"    mode: 'writeFile', // Change this to any function of the fs library of node to use it.",
+					"    uniqueIdentifier: false,",
+					"    reportFileHeader: dataFileHeader.join(','),",
+					"    reportFileValues: iterationValues.join(',')",
+					"};",
+					"",
+					"if (pm.response.code != 201 && pm.response.code != 200) {",
+					"    pm.sendRequest({",
+					"        url: `${reportingHost}/write-error`,",
+					"        method: 'POST',",
+					"        header: 'Content-Type:application/json',",
+					"        body: {",
+					"            mode: 'raw',",
+					"            raw: JSON.stringify(opts)",
+					"        }",
+					"    }, function (err, res) {",
+					"        console.log(res);",
+					"    });",
+					"} else {",
+					"    pm.sendRequest({",
+					"        url: `${reportingHost}/write-success`,",
+					"        method: 'POST',",
+					"        header: 'Content-Type:application/json',",
+					"        body: {",
+					"            mode: 'raw',",
+					"            raw: JSON.stringify(opts)",
+					"        }",
+					"    }, function (err, res) {",
+					"        console.log(res);",
+					"    });",
+					"}",
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "reportingHost",
+			"value": "http://localhost:3000"
+		}
+	]
+}
